@@ -10,12 +10,13 @@ from Code.Z import Util, XRun
 
 
 def init():
+    bug_log = Util.opj(Code.folder_writable, "bug.log")
     if __debug__:
         from Code.Z import Debug
 
-        sys.stderr = Debug.LogDebug("bug.log")
+        sys.stderr = Debug.LogDebug(bug_log)
     else:
-        sys.stderr = Util.Log("bug.log")
+        sys.stderr = Util.Log(bug_log)
 
     main_procesador = Procesador.Procesador()
     main_procesador.set_version(Code.VERSION)

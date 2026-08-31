@@ -122,7 +122,10 @@ char *move2str(MoveBin move, char *str_dest) {
  */
 #ifndef _WIN32
 
-/* Linux */
+/* Linux / macOS */
+#include <sys/time.h>
+#include <sys/select.h>
+
 bool bioskey() {
     fd_set readfds;
     struct timeval timeout;

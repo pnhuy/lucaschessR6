@@ -1,0 +1,20 @@
+# Reconstructed: the upstream Cargo.toml is not included in src.7z.
+# Velvet 1.2.0 has no external dependencies.
+[package]
+name = "velvet"
+version = "1.2.0"
+edition = "2018"
+
+[lib]
+name = "velvet"
+path = "src/lib.rs"
+
+[[bin]]
+name = "velvet"
+path = "src/bin/velvet.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+codegen-units = 1

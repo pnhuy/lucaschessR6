@@ -97,11 +97,15 @@ def is_windows() -> bool:
     return sys.platform == "win32"
 
 
+def is_macos() -> bool:
+    return sys.platform == "darwin"
+
+
 def create_folder(folder: Union[str, Path]) -> bool:
     folder_path = Path(folder)
     try:
         folder_path.mkdir()
-        if is_linux():
+        if not is_windows():
             folder_path.chmod(
                 stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH,
             )
@@ -116,7 +120,7 @@ def rename_folder(old_folder: Union[str, Path], new_name: Union[str, Path]) -> b
 
     try:
         old_path.rename(new_path)
-        if is_linux():
+        if not is_windows():
             new_path.chmod(
                 stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH,
             )
@@ -131,7 +135,7 @@ def check_folders(folder: Union[str, Path]) -> bool:
         if not folder_path.is_dir():
             try:
                 folder_path.mkdir(parents=True, exist_ok=True)
-                if is_linux():
+                if not is_windows():
                     folder_path.chmod(
                         stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH,
                     )
@@ -897,6 +901,15 @@ def startfile(path: Union[str, Path]) -> bool:
 
         if is_windows():
             os.startfile(str(path_obj))
+            return True
+
+        if is_macos():
+            subprocess.Popen(
+                ["open", str(path_obj)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,  # detach from parent process
+            )
             return True
 
         # Linux

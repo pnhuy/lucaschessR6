@@ -1,0 +1,48 @@
+--- a/src/cheng4/tables.h
++++ b/src/cheng4/tables.h
+@@ -147,6 +147,13 @@
+ #	define IS_X64 1
+ #endif
+ 
++// __LP64__ holds on 64-bit ARM as well, so IS_X64 on its own is not enough to
++// gate the x86 inline assembly below. IS_X86 marks an actual x86 target;
++// elsewhere the compiler builtins are used instead.
++#if defined(__x86_64__) || defined(__i386__) || defined(_M_AMD64) || defined(_M_X64) || defined(_M_IX86)
++#	define IS_X86 1
++#endif
++
+ // singleton
+ struct BitOp
+ {
+@@ -245,6 +252,8 @@
+ 		"cc", "eax"
+ 			);
+ 		return (uint)res;
++	#elif defined(__GNUC__) && defined(IS_X64) && !defined(IS_X86)
++		return (uint)(63 - __builtin_clzll(m));
+ 	#elif defined(__GNUC__) && defined(IS_X64)
+ 		u64 res;
+ 		asm(
+@@ -306,7 +315,9 @@
+ 				#endif
+ 			#endif
+ 		#elif defined(__GNUC__)
+-			#if defined(IS_X64)
++			#if !defined(IS_X86)
++				return (uint)__builtin_popcountll( val );
++			#elif defined(IS_X64)
+ 				u64 res;
+ 				asm(
+ 					"popcnt %1, %0" :
+--- a/src/cheng4/tables.cpp
++++ b/src/cheng4/tables.cpp
+@@ -425,6 +425,9 @@
+ 		__cpuid(id, 1);
+ 		hwPopCnt = (id[2] & 0x800000) != 0;
+ 	}
++#elif defined(__GNUC__) && !defined(IS_X86)
++	// ARM64 always has a population count instruction; there is no cpuid.
++	hwPopCnt = 1;
+ #elif defined(__GNUC__) && !defined(__ANDROID__)
+ 	int id[4] = {0};
+ 	asm(

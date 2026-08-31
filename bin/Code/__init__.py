@@ -10,20 +10,56 @@ BASE_VERSION = "C"
 
 Util.randomize()
 
-current_dir = os.path.abspath(os.path.realpath(os.path.dirname(sys.argv[0])))
-if current_dir:
+# True when running from a PyInstaller bundle (the .app on macOS).
+frozen = bool(getattr(sys, "frozen", False))
+
+if frozen:
+    # Everything the bundle ships lives under sys._MEIPASS, which therefore
+    # plays the part of both bin/ and the folder above it.
+    current_dir = os.path.abspath(getattr(sys, "_MEIPASS", os.path.dirname(sys.executable)))
     os.chdir(current_dir)
+else:
+    current_dir = os.path.abspath(os.path.realpath(os.path.dirname(sys.argv[0])))
+    if current_dir:
+        os.chdir(current_dir)
 
 lucas_chess: Optional[str] = None  # asignado en Translate
 
-platform = "win32" if sys.platform == "win32" else "linux"
+if sys.platform == "win32":
+    platform = "win32"
+elif sys.platform == "darwin":
+    platform = "darwin"
+else:
+    platform = "linux"
 
 folder_os = Util.opj(current_dir, "OS", platform)
 sys.path.insert(0, folder_os)
 sys.path.insert(0, os.path.realpath(os.curdir))
 
-folder_root = os.path.realpath("..")
+folder_root = current_dir if frozen else os.path.realpath("..")
 folder_resources = Util.opj(folder_root, "Resources")
+
+
+def _folder_writable() -> str:
+    """Where the program may write: UserData, logs, temporary files.
+
+    Running from source that is the folder above bin/, as it has always been.
+    An app bundle is read-only and code-signed, so writing inside it would fail
+    and would invalidate the signature; state goes to the per-user location the
+    platform expects instead.
+    """
+    if not frozen:
+        return folder_root
+    if sys.platform == "darwin":
+        return os.path.expanduser("~/Library/Application Support/Lucas Chess R6")
+    if sys.platform == "win32":
+        return Util.opj(os.environ.get("APPDATA") or os.path.expanduser("~"), "Lucas Chess R6")
+    return os.path.expanduser("~/.local/share/lucaschess-r6")
+
+
+folder_writable = _folder_writable()
+if frozen:
+    os.makedirs(folder_writable, exist_ok=True)
 
 
 def path_resource(*lista):
@@ -48,7 +84,12 @@ tbookPTZ = path_resource("Openings", "fics15.bin")
 tbookI = path_resource("Openings", "irina.bin")
 manager_tutor = None
 
-font_mono = "Courier New" if Util.is_windows() else "Mono"
+if Util.is_windows():
+    font_mono = "Courier New"
+elif Util.is_macos():
+    font_mono = "Menlo"
+else:
+    font_mono = "Mono"
 
 list_engine_managers = None
 

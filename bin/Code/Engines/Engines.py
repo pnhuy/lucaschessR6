@@ -576,7 +576,9 @@ def _run_uci_command(path_exe: str) -> Optional[str]:
     else:
         startupinfo = None
         # Preservar LD_LIBRARY_PATH existente y añadir directorio del motor
-        ld_library = os.environ.get("LD_LIBRARY_PATH", "")
+        # (en macOS la variable equivalente es DYLD_LIBRARY_PATH)
+        var_lib_path = "DYLD_LIBRARY_PATH" if Util.is_macos() else "LD_LIBRARY_PATH"
+        ld_library = os.environ.get(var_lib_path, "")
         parts = [p for p in ld_library.split(":") if p]
         parts.insert(0, os.path.abspath(direxe))
         # También añadir ./lib si existe (común en algunos motores)
@@ -584,7 +586,7 @@ def _run_uci_command(path_exe: str) -> Optional[str]:
         if os.path.isdir(lib_path):
             parts.insert(0, os.path.abspath(lib_path))
 
-        env = {**os.environ, "LD_LIBRARY_PATH": ":".join(parts)}
+        env = {**os.environ, var_lib_path: ":".join(parts)}
 
         if "PATH" in env:
             env["PATH"] = f"{direxe}:{env['PATH']}"

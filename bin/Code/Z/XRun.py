@@ -6,7 +6,10 @@ from Code.Z import Util
 
 def run_lucas(*args):
     li = []
-    if sys.argv[0].endswith(".py"):
+    if getattr(sys, "frozen", False):
+        # In a bundle sys.executable is the program itself.
+        li.append(sys.executable)
+    elif sys.argv[0].endswith(".py"):
         li.append(sys.executable)
         li.append("LucasR.py")
     else:

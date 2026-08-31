@@ -208,6 +208,8 @@ def options(parent, configuration):
     if Util.is_windows():
         li_db.insert(5, (_("DGT"), "DGT"))
         li_db.insert(10, (_("Manya Cynus") + x, "Cynus"))
+    elif Util.is_macos():
+        li_db = li_db[:1]  # no macOS build of the board drivers
 
     form.combobox(_("Digital board"), li_db, configuration.x_digital_board)
     form.separador()

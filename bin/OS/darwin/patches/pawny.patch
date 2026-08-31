@@ -1,0 +1,20 @@
+--- a/src/bits.h
++++ b/src/bits.h
+@@ -211,6 +211,17 @@
+   : "cc");
+   return (r1);
+ }
++#else
++/* Neither _M_IX64 nor _M_IX86: no x86 assembly available (ARM64, for
++   instance). The compiler builtins map to the native instructions. */
++static __inline__ int popcnt(unsigned __int64 qw)
++{ return __builtin_popcountll(qw); }
++
++static __inline__ int bitscanf(unsigned __int64 qw)
++{ return qw ? __builtin_ctzll(qw) : 0; }
++
++static __inline__ int bitscanr(unsigned __int64 qw)
++{ return qw ? 63 - __builtin_clzll(qw) : 0; }
+ #endif
+ 
+ #endif

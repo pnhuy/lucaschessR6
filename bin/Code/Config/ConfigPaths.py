@@ -5,8 +5,10 @@ from Code.Z import Util
 
 
 class ConfigPaths:
-    LCFILEFOLDER: str = os.path.realpath("../lc.folder")
-    LCBASEFOLDER: str = os.path.realpath("../UserData")
+    # Code.folder_writable is the folder above bin/ when running from source and
+    # a per-user folder outside the bundle when frozen.
+    LCFILEFOLDER: str = os.path.realpath(Util.opj(Code.folder_writable, "lc.folder"))
+    LCBASEFOLDER: str = os.path.realpath(Util.opj(Code.folder_writable, "UserData"))
 
     def __init__(self, configuration, user):
         self.configuration = configuration

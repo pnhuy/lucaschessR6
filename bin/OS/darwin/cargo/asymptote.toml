@@ -1,0 +1,21 @@
+# Reconstructed: the upstream Cargo.toml is not included in src.7z.
+# rand is pinned to 0.5: the code uses rand::prng::ChaChaRng and
+# rand::AsByteSliceMut, both gone from later releases.
+[package]
+name = "asymptote"
+version = "0.8.0"
+edition = "2018"
+
+[[bin]]
+name = "asymptote"
+path = "src/main.rs"
+
+[dependencies]
+arrayvec = "0.4"
+crossbeam = "0.7"
+rand = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

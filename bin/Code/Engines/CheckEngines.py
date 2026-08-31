@@ -41,6 +41,11 @@ class StockfishManager:
         return self._cpu_flags
 
     def check(self, check_again: bool = False) -> bool:
+        if Util.is_macos():
+            # A single arm64 build is shipped, there are no CPU variants to pick
+            # between, and the x86-64 names in versions.txt do not exist.
+            return True
+
         conf = self._get_stockfish_config()
         if not conf:
             return True
