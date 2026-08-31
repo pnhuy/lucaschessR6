@@ -18,6 +18,8 @@ bin/_fastercode/src/*.so
 # macOS engine build work folder (see bin/OS/darwin/BuildEngines.py)
 bin/OS/darwin/_build/
 
-# macOS .app / .dmg build outputs (see bin/OS/darwin/app/BuildApp.py)
-bin/OS/darwin/app/dist/
+# macOS app build outputs (see bin/OS/darwin/app/BuildApp.py).
+# The .app and .dmg are build products, not source: publish them as GitHub
+# Release assets rather than committing them.
 bin/OS/darwin/app/build/
+bin/OS/darwin/app/dist/
