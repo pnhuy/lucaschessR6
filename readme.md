@@ -50,6 +50,16 @@ before macOS will open it:
 xattr -dr com.apple.quarantine "/Applications/Lucas Chess R6.app"
 ```
 
+With an Apple Developer ID the build can sign and notarize instead, so it opens
+anywhere with no warning -- see "Signing and notarizing" in
+[bin/OS/darwin/README.md](bin/OS/darwin/README.md):
+
+```bash
+bin/OS/darwin/app/BuildApp.py --dmg --python "$PWD/.venv/bin/python" \
+    --sign-identity "Developer ID Application: Your Name (TEAMID)" \
+    --notarize lucaschess
+```
+
 Only the engines that build are registered, so the engine list is smaller than
 on Windows and Linux. Digital boards and in-app updates are not available. When
 running from the bundle, `UserData` lives in

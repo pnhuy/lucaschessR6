@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Entitlements for the notarized, hardened-runtime build.
+
+Notarization requires the Hardened Runtime, which by default forbids several
+things a PyInstaller application and this program in particular have to do:
+
+  allow-unsigned-executable-memory
+      CPython writes and executes memory for its own bytecode dispatch and for
+      ctypes callbacks (Eboard uses ctypes.CFUNCTYPE).
+
+  disable-library-validation
+      The bundle loads dylibs and a Python extension (FasterCode) that are not
+      signed by the same Team ID as the app, and spawns the bundled UCI engines
+      as child processes.
+
+  allow-dyld-environment-variables
+      EngineRun sets DYLD_LIBRARY_PATH so an engine can find libraries shipped
+      alongside it.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+</dict>
+</plist>

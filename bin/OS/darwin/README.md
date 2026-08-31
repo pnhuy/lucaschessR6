@@ -123,13 +123,75 @@ An app bundle is read-only and signed, so the program cannot write inside it.
 `~/Library/Application Support/Lucas Chess R6/` when frozen, and to the folder
 above `bin/` when running from source, as before.
 
-`--sign-identity "Developer ID Application: ..."` signs with a real identity.
-Without one the bundle is ad-hoc signed and therefore not notarized, so a
-downloaded copy stays quarantined until that is cleared:
+Without a signing identity the bundle is ad-hoc signed, which is enough to run
+it locally but not to hand it to anyone: a downloaded copy stays quarantined
+until that is cleared by hand.
 
 ```bash
 xattr -dr com.apple.quarantine "/Applications/Lucas Chess R6.app"
 ```
+
+
+Signing and notarizing
+----------------------
+
+With an Apple Developer account the build can produce a bundle that opens
+anywhere with no warning. Three one-time setup steps, then one build command.
+
+**1. Get a Developer ID Application certificate into the keychain.** In Xcode:
+Settings → Accounts → sign in → Manage Certificates → **+** → *Developer ID
+Application*. (Creating a Developer ID certificate needs the Account Holder
+role; on an individual account that is you.) Check it landed:
+
+```bash
+security find-identity -v -p codesigning
+# 1) ABC123...  "Developer ID Application: Your Name (TEAMID)"
+```
+
+The quoted string is what `--sign-identity` wants.
+
+**2. Make an app-specific password** at appleid.apple.com → Sign-In and
+Security → App-Specific Passwords. Your normal Apple ID password will not work.
+
+**3. Store the notarization credentials** under a profile name, once:
+
+```bash
+xcrun notarytool store-credentials "lucaschess"     --apple-id "you@example.com"     --team-id  "TEAMID"     --password "abcd-efgh-ijkl-mnop"     # the app-specific password
+```
+
+**Then build:**
+
+```bash
+bin/OS/darwin/app/BuildApp.py --dmg     --python "$PWD/.venv/bin/python"     --sign-identity "Developer ID Application: Your Name (TEAMID)"     --notarize lucaschess
+```
+
+That signs every nested engine and the bundle with the Hardened Runtime and a
+secure timestamp, submits the app to Apple, waits for the verdict, staples the
+ticket, then does the same for the .dmg. Expect a few minutes per submission.
+
+Two details that are easy to get wrong and that the script handles:
+
+* **The Hardened Runtime is mandatory for notarization**, and it blocks things
+  this program needs, so `entitlements.plist` re-enables them: unsigned
+  executable memory and JIT (CPython's own dispatch, and the ctypes callbacks
+  Eboard uses), library validation off (the bundled dylibs, FasterCode, and the
+  engines are not signed by your Team ID), and DYLD environment variables
+  (EngineRun sets `DYLD_LIBRARY_PATH` for engines that ship libraries).
+* **Signing is inside-out.** Every nested engine binary is signed before the
+  enclosing bundle is sealed; sealing first and signing the contents afterwards
+  invalidates the outer signature.
+
+To check the result:
+
+```bash
+codesign --verify --deep --strict --verbose=2 "app/dist/Lucas Chess R6.app"
+spctl -a -vvv -t install "app/dist/Lucas Chess R6.app"   # expect: accepted, Notarized
+xcrun stapler validate "app/dist/LucasChessR6.dmg"
+```
+
+If notarization is rejected, `xcrun notarytool log <submission-id>
+--keychain-profile lucaschess` returns the per-file reasons; the usual cause is
+a nested binary that was missed or lacks a secure timestamp.
 
 The icon in `app/LucasChess.icns` is generated from the app's own 64×64
 `Aplicacion64` artwork, the largest that exists in the repository, so the big

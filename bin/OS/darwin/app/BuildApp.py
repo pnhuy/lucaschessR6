@@ -10,7 +10,11 @@ compressed disk image.
     ./BuildApp.py                 # build the .app
     ./BuildApp.py --dmg           # build the .app and then the .dmg
     ./BuildApp.py --dmg --clean   # discard previous build state first
-    ./BuildApp.py --sign-identity "Developer ID Application: ..."
+
+    # signed and notarized, for handing to other people
+    ./BuildApp.py --dmg \
+        --sign-identity "Developer ID Application: Your Name (TEAMID)" \
+        --notarize lucaschess
 
 Prerequisites: the engines must already be built (`../BuildEngines.py`) and
 FasterCode must be present in `../` -- see ../README.md. PyInstaller has to be
@@ -19,7 +23,8 @@ defaults to the interpreter running this file.
 
 A note on Gatekeeper: without an Apple Developer ID the bundle can only be
 ad-hoc signed, and macOS will refuse to open it from a downloaded .dmg until the
-quarantine flag is cleared. See the end of ../README.md.
+quarantine flag is cleared. See "Signing and notarizing" in ../README.md for the
+one-time setup that --notarize expects.
 """
 
 import argparse
@@ -35,6 +40,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DARWIN = os.path.dirname(HERE)
 ENGINES = os.path.join(DARWIN, "Engines")
 SPEC = os.path.join(HERE, "LucasChess.spec")
+ENTITLEMENTS = os.path.join(HERE, "entitlements.plist")
 DIST = os.path.join(HERE, "dist")
 WORK = os.path.join(HERE, "build")
 APP_NAME = "Lucas Chess R6.app"
@@ -95,9 +101,21 @@ def fix_permissions(binaries: Sequence[str]) -> None:
     print(f"  execute bit set on {len(binaries)} engine binaries")
 
 
-def sign(paths: Sequence[str], identity: Optional[str]) -> int:
-    """Sign each path, then report failures rather than dying on the first one."""
-    args = ["--force", "--timestamp=none", "--sign", identity or "-"]
+def sign(paths: Sequence[str], identity: Optional[str],
+         entitlements: Optional[str] = None) -> int:
+    """Sign each path, reporting failures rather than dying on the first one.
+
+    With a real identity the Hardened Runtime and a secure timestamp are added,
+    both of which notarization requires. Ad-hoc signing ("-") supports neither,
+    and is only good enough to run the bundle locally.
+    """
+    if identity:
+        args = ["--force", "--options", "runtime", "--timestamp", "--sign", identity]
+        if entitlements:
+            args += ["--entitlements", entitlements]
+    else:
+        args = ["--force", "--timestamp=none", "--sign", "-"]
+
     failed = []
     for path in paths:
         p = subprocess.run(["codesign", *args, path],
@@ -109,7 +127,33 @@ def sign(paths: Sequence[str], identity: Optional[str]) -> int:
     return len(paths) - len(failed)
 
 
-def build_app(python: str, clean: bool, identity: Optional[str]) -> str:
+def notarize(path: str, profile: str) -> None:
+    """Submit to Apple, wait for the verdict, then staple the ticket.
+
+    Stapling is what lets the result work offline; without it Gatekeeper has to
+    ask Apple on first launch.
+    """
+    target = path
+    cleanup = None
+    if path.endswith(".app"):
+        # notarytool takes an archive, not a bundle directory.
+        target = path + ".zip"
+        run(["ditto", "-c", "-k", "--keepParent", path, target])
+        cleanup = target
+
+    print(f"  submitting {os.path.basename(target)} to Apple, this takes a few minutes")
+    run(["xcrun", "notarytool", "submit", target,
+         "--keychain-profile", profile, "--wait"])
+    if cleanup:
+        os.remove(cleanup)
+
+    # A .dmg and a .app can both be stapled; the zip cannot.
+    run(["xcrun", "stapler", "staple", path])
+    print(f"  stapled {os.path.basename(path)}")
+
+
+def build_app(python: str, clean: bool, identity: Optional[str],
+              notarize_profile: Optional[str] = None) -> str:
     print("Cleaning engine logs")
     clean_engine_junk()
 
@@ -134,8 +178,12 @@ def build_app(python: str, clean: bool, identity: Optional[str]) -> str:
     sign(binaries, identity)
 
     print("Signing the bundle")
-    sign([APP], identity)
+    sign([APP], identity, ENTITLEMENTS if identity else None)
     run(["codesign", "--verify", "--deep", "--strict", APP])
+
+    if notarize_profile:
+        print("Notarizing the bundle")
+        notarize(APP, notarize_profile)
 
     size = subprocess.run(["du", "-sh", APP], capture_output=True, text=True).stdout.split()[0]
     plist = os.path.join(APP, "Contents", "Info.plist")
@@ -145,7 +193,8 @@ def build_app(python: str, clean: bool, identity: Optional[str]) -> str:
     return APP
 
 
-def build_dmg(volname: str = "Lucas Chess R6") -> str:
+def build_dmg(identity: Optional[str] = None, notarize_profile: Optional[str] = None,
+              volname: str = "Lucas Chess R6") -> str:
     """Compressed disk image with the app and a shortcut to /Applications."""
     dmg = os.path.join(DIST, "LucasChessR6.dmg")
     staging = os.path.join(WORK, "dmg")
@@ -165,6 +214,13 @@ def build_dmg(volname: str = "Lucas Chess R6") -> str:
          "-ov", "-format", "UDZO", "-imagekey", "zlib-level=6", dmg])
     shutil.rmtree(staging, ignore_errors=True)
 
+    if identity:
+        print("Signing the disk image")
+        sign([dmg], identity)
+    if notarize_profile:
+        print("Notarizing the disk image")
+        notarize(dmg, notarize_profile)
+
     size = subprocess.run(["du", "-sh", dmg], capture_output=True, text=True).stdout.split()[0]
     print(f"\n{os.path.basename(dmg)} built, {size}")
     return dmg
@@ -179,7 +235,12 @@ def main() -> None:
     parser.add_argument("--python", default=sys.executable,
                         help="interpreter that has PyInstaller and the app's dependencies")
     parser.add_argument("--sign-identity", default=None,
-                        help='codesign identity; default is ad-hoc ("-")')
+                        help='codesign identity, e.g. "Developer ID Application: '
+                             'Name (TEAMID)"; default is ad-hoc ("-")')
+    parser.add_argument("--notarize", metavar="KEYCHAIN_PROFILE", default=None,
+                        help="notarize and staple using credentials previously stored "
+                             "with `xcrun notarytool store-credentials`; requires "
+                             "--sign-identity")
     args = parser.parse_args()
 
     if sys.platform != "darwin":
@@ -187,11 +248,17 @@ def main() -> None:
     if not os.path.isdir(ENGINES) or not os.listdir(ENGINES):
         sys.exit(f"No engines in {ENGINES} -- run ../BuildEngines.py first.")
 
-    build_app(args.python, args.clean, args.sign_identity)
-    if args.dmg:
-        build_dmg()
+    if args.notarize and not args.sign_identity:
+        sys.exit("--notarize needs --sign-identity: Apple will not notarize an "
+                 "ad-hoc signature.")
 
-    if not args.sign_identity:
+    build_app(args.python, args.clean, args.sign_identity, args.notarize)
+    if args.dmg:
+        build_dmg(args.sign_identity, args.notarize)
+
+    if args.notarize:
+        print("\nNotarized and stapled. It will open on any Mac with no warning.")
+    elif not args.sign_identity:
         print("\nAd-hoc signed, so not notarized. Opening it from a downloaded\n"
               ".dmg needs the quarantine flag cleared:\n"
               '  xattr -dr com.apple.quarantine "/Applications/Lucas Chess R6.app"')
