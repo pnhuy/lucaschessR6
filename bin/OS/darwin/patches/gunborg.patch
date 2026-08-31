@@ -1,0 +1,11 @@
+--- a/src/moves.cpp
++++ b/src/moves.cpp
+@@ -97,7 +97,7 @@
+ 	}
+ 	meta_info &= clear_en_passant_mask;
+ 	// set en passant square
+-	if (piece(move.m) == PAWN && abs(to_square(move.m) - from_square(move.m)) == 16) {
++	if (piece(move.m) == PAWN && abs((int) to_square(move.m) - (int) from_square(move.m)) == 16) {
+ 		if (color(move.m) == WHITE) {
+ 			meta_info |= (1ULL << from_square(move.m)) << 8;
+ 		} else {

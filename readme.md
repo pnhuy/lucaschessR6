@@ -16,6 +16,45 @@ Incompatibilities
 * **Does not support Windows 8 or previous versions.**
 * **Not compatible with 32-bit operating systems.**
 
+
+macOS
+-----
+
+Windows and Linux ship prebuilt binaries; macOS does not, so on macOS the
+FasterCode extension and the chess engines are compiled from the sources in this
+repository. See [bin/OS/darwin/README.md](bin/OS/darwin/README.md) for the full
+setup, in short:
+
+```bash
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements.txt cython setuptools
+bin/_fastercode/fastercode_macos.sh "$PWD/.venv/bin/python"
+cp bin/_fastercode/src/FasterCode.cpython-*-darwin.so bin/OS/darwin/
+bin/OS/darwin/BuildEngines.py
+cd bin && ../.venv/bin/python LucasR.py
+```
+
+To package it as a double-clickable app and a disk image:
+
+```bash
+.venv/bin/pip install pyinstaller
+bin/OS/darwin/app/BuildApp.py --dmg --python "$PWD/.venv/bin/python"
+```
+
+That writes `Lucas Chess R6.app` and `LucasChessR6.dmg` into
+`bin/OS/darwin/app/dist/`. The bundle is only ad-hoc signed, so a copy that has
+been downloaded rather than built locally needs its quarantine flag cleared
+before macOS will open it:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Lucas Chess R6.app"
+```
+
+Only the engines that build are registered, so the engine list is smaller than
+on Windows and Linux. Digital boards and in-app updates are not available. When
+running from the bundle, `UserData` lives in
+`~/Library/Application Support/Lucas Chess R6/` rather than beside the program.
+
 Dependencies
 ------------
 

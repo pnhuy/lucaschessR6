@@ -128,6 +128,10 @@ class Eboard:
         self.side_takeback = None
         self.dispatch = dispatch
 
+        if Util.is_macos():
+            # The board drivers are only distributed as Linux .so / Windows .dll
+            return False
+
         path_eboards = Util.opj(Code.folder_os, "DigitalBoards")
 
         if Util.is_linux():

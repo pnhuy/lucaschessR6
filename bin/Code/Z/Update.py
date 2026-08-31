@@ -10,11 +10,22 @@ from Code import Util
 from Code.Board import Eboard
 from Code.QT import QTMessages, QTProgressBars, SelectFiles
 
-platform = "r6_win" if Util.is_windows() else "r6_linux"
+if Util.is_windows():
+    platform = "r6_win"
+elif Util.is_macos():
+    # Upstream publishes no macOS channel; see updates_supported().
+    platform = "r6_macos"
+else:
+    platform = "r6_linux"
 
 WEBUPDATES = f"https://lucaschess.pythonanywhere.com/static/updater/updates_{platform}.txt"
 WEBUPDATES_EBOARD_VERSION = f"https://lucaschess.pythonanywhere.com/static/updater/version_eboards_{platform}.txt"
 WEBUPDATES_EBOARD_ZIP = f"https://lucaschess.pythonanywhere.com/static/updater/eboards_{platform}.zip"
+
+
+def updates_supported() -> bool:
+    """Upstream publishes updater channels for Windows and Linux only."""
+    return not Util.is_macos()
 
 
 def _download_with_progress(
@@ -121,6 +132,13 @@ def update_eboard(main_window):
 
 
 def update(main_window):
+    if not updates_supported():
+        QTMessages.message_error(
+            main_window,
+            _("There are no updates available for this operating system."),
+        )
+        return False
+
     if Code.configuration.x_digital_board:
         if Code.eboard:
             Code.eboard.deactivate()
@@ -164,6 +182,9 @@ def update(main_window):
 
 
 def test_update(procesador):
+    if not updates_supported():
+        return
+
     current_version = Code.VERSION.replace(" ", "0").replace(".", "")[1:].encode()
     base_version = Code.BASE_VERSION.encode()
     nresp = 0

@@ -978,6 +978,15 @@ def startfile(path: str | Path) -> bool:
             os.startfile(str(path_obj))
             return True
 
+        if is_macos():
+            subprocess.Popen(
+                ["open", str(path_obj)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,  # detach from parent process
+            )
+            return True
+
         # Linux
         opener = _resolve_linux_opener(path_obj)
         if not opener:

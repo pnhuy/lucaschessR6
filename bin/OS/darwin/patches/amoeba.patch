@@ -1,0 +1,18 @@
+--- a/src/util.d
++++ b/src/util.d
+@@ -141,11 +141,14 @@
+  *  - logging for debugging
+  *  - internal message passing
+  */
++// Hoisted out of Message: since D 2.086 a nested shared class inside a
++// non-shared aggregate is rejected for having stronger constancy.
++shared class Lock {};
++
+ final class Message {
+ private:
+ 	string [] ring;
+ 	size_t first, last;
+-	shared class Lock {};
+ 	Lock lock, ioLock;
+ 	string header;
+ 	File logFile;

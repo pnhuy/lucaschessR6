@@ -1,2 +1,23 @@
 UserData/
 
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Local virtualenv used to run from source
+.venv/
+
+# FasterCode build artifacts (see bin/_fastercode/)
+bin/_fastercode/src/FasterCode.c
+bin/_fastercode/src/FasterCode.pyx
+bin/_fastercode/src/build/
+bin/_fastercode/src/libirina.a
+bin/_fastercode/src/*.so
+
+# macOS engine build work folder (see bin/OS/darwin/BuildEngines.py)
+bin/OS/darwin/_build/
+
+# macOS .app / .dmg build outputs (see bin/OS/darwin/app/BuildApp.py)
+bin/OS/darwin/app/dist/
+bin/OS/darwin/app/build/
