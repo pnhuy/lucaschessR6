@@ -23,7 +23,7 @@ case "$ARCH" in
     *)      ARCH_FLAGS=() ;;
 esac
 
-OBJS=(lc board data eval hash loop makemove movegen movegen_piece_to search util pgn parser polyglot)
+OBJS=(lc board data hash makemove movegen movegen_piece_to util pgn parser polyglot cpu_flags)
 
 cd "$HERE/src/irina"
 rm -f ./*.o

@@ -3,7 +3,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#if defined(_MSC_VER)
+#if defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64)
+    #define NO_CPUID 1   /* no x86 CPUID on ARM: report no x86 feature flags */
+#elif defined(_MSC_VER)
     #include <intrin.h>
     static void cpuid(int info[4], int leaf, int subleaf) {
         __cpuidex(info, leaf, subleaf);
@@ -32,6 +34,9 @@ enum {
 
 static uint64_t detect_cpu_flags(void) {
     uint64_t flags = 0;
+#ifdef NO_CPUID
+    return flags;
+#else
     int info[4] = {0};
 
     cpuid(info, 0, 0);
@@ -67,6 +72,7 @@ static uint64_t detect_cpu_flags(void) {
     }
 
     return flags;
+#endif
 }
 
 int cpu_flags_to_string(char *buffer, int size) {
