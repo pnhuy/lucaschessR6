@@ -53,7 +53,7 @@ def read_engines(folder_engines):
         # engine.read_uci_options()
         return engine
 
-    bmi2 = "-bmi2" if FasterCode.bmi2() else ""
+    bmi2 = "-bmi2" if FasterCode.is_bmi2() else ""
 
     levels = list(range(1100, 2000, 100)) + [2200]
     for level in levels:
