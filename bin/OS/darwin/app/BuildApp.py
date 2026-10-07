@@ -94,6 +94,31 @@ def engine_binaries(root: str) -> List[str]:
     return out
 
 
+def all_macho(root: str) -> List[str]:
+    """Every real Mach-O file in the bundle, deepest paths first.
+
+    Notarization rejects any unsigned or ad-hoc signed binary anywhere in the
+    bundle, not only the engines: the Python libraries and extension modules
+    PyInstaller collects under Contents/Frameworks count too. Deepest first so a
+    nested binary is signed before whatever contains it.
+    """
+    magics = (b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca")
+    out = []
+    for dirpath, _dirs, files in os.walk(root):
+        for name in files:
+            path = os.path.join(dirpath, name)
+            if os.path.islink(path):
+                continue
+            try:
+                with open(path, "rb") as f:
+                    if f.read(4) in magics:
+                        out.append(path)
+            except OSError:
+                continue
+    out.sort(key=lambda p: (p.count(os.sep), p), reverse=True)
+    return out
+
+
 def fix_permissions(binaries: Sequence[str]) -> None:
     for path in binaries:
         mode = os.stat(path).st_mode
@@ -142,10 +167,19 @@ def notarize(path: str, profile: str) -> None:
         cleanup = target
 
     print(f"  submitting {os.path.basename(target)} to Apple, this takes a few minutes")
-    run(["xcrun", "notarytool", "submit", target,
-         "--keychain-profile", profile, "--wait"])
+    # `--wait` exits 0 even when Apple rejects the submission, so read the verdict.
+    print("  $ xcrun notarytool submit ... --wait", flush=True)
+    result = subprocess.run(["xcrun", "notarytool", "submit", target,
+                             "--keychain-profile", profile, "--wait"],
+                            capture_output=True, text=True)
+    print(result.stdout[-2000:], flush=True)
     if cleanup:
         os.remove(cleanup)
+    if result.returncode != 0 or "status: Accepted" not in result.stdout:
+        sub_id = next((ln.split(":", 1)[1].strip() for ln in result.stdout.splitlines()
+                       if ln.strip().startswith("id:")), "<id>")
+        sys.exit(f"Notarization of {os.path.basename(path)} was not accepted. Reasons: "
+                 f"xcrun notarytool log {sub_id} --keychain-profile {profile}")
 
     # A .dmg and a .app can both be stapled; the zip cannot.
     run(["xcrun", "stapler", "staple", path])
@@ -174,8 +208,9 @@ def build_app(python: str, clean: bool, identity: Optional[str],
     # The engines are nested Mach-O executables. They have to carry their own
     # signature before the enclosing bundle is sealed, or the bundle signature
     # will not validate.
-    print(f"Signing {len(binaries)} nested engine binaries")
-    sign(binaries, identity)
+    nested = all_macho(APP)
+    print(f"Signing {len(nested)} nested binaries ({len(binaries)} of them engines)")
+    sign(nested, identity)
 
     print("Signing the bundle")
     sign([APP], identity, ENTITLEMENTS if identity else None)
